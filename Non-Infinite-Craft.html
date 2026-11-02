@@ -1,0 +1,1457 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Craft Your Own</title>
+<style>
+:root{--paper:#eef3f4;--grid:#cddde2;--ink:#17262e;--muted:#5f7480;--panel:#fbfdfd;--line:#c3d3d9;--chip:#fff;--accent:#3b4cca;--hot:#e0457b;--shadow:0 1px 2px rgba(23,38,46,.18)}
+@media (prefers-color-scheme:dark){:root{--paper:#0f1c2b;--grid:#1b2f45;--ink:#e6eef5;--muted:#8ea4b8;--panel:#14263a;--line:#2a4560;--chip:#1c3350;--accent:#8e9bff;--hot:#ff6b9a;--shadow:0 1px 2px rgba(0,0,0,.5)}}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{display:flex;overflow:hidden;background:var(--paper);color:var(--ink);font-family:"Avenir Next","Trebuchet MS",system-ui,sans-serif}
+#stage{flex:1;min-height:0;position:relative;background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);background-size:28px 28px}
+#layer{position:fixed;inset:0;pointer-events:none;z-index:5}
+#layer:not(:empty)~#hint{display:none}
+#hint{position:absolute;inset:0;display:grid;place-content:center;text-align:center;padding:2rem;color:var(--muted);pointer-events:none;line-height:1.5}
+#hint b{display:block;font-size:1.4rem;color:var(--ink);margin-bottom:.3rem}
+aside{width:300px;display:flex;flex-direction:column;min-height:0;background:var(--panel);border-left:1px solid var(--line)}
+aside header{padding:.9rem 1rem .5rem}
+aside h1{font-size:1.1rem;margin:0 0 .15rem}
+aside header p{margin:0;font-size:.82rem;color:var(--muted)}
+#q{margin:.4rem 1rem;padding:.5rem .7rem;border:1px solid var(--line);border-radius:8px;background:var(--chip);color:var(--ink);font:inherit;font-size:.9rem}
+#list{flex:1;overflow:auto;padding:.5rem 1rem;display:flex;flex-wrap:wrap;gap:.45rem;align-content:flex-start}
+aside footer{padding:.7rem 1rem;border-top:1px solid var(--line);display:flex;flex-wrap:wrap;gap:.4rem}
+aside.trash{outline:3px dashed var(--hot);outline-offset:-6px}
+.chip,.item{display:inline-flex;align-items:center;gap:.4rem;padding:.35rem .7rem;background:var(--chip);border:1px solid var(--line);border-radius:8px;box-shadow:var(--shadow);cursor:grab;user-select:none;-webkit-user-select:none;touch-action:none;white-space:nowrap;font-size:.95rem}
+.item{position:absolute;pointer-events:auto;transform:translate(-50%,-50%)}
+.item.drag{cursor:grabbing;z-index:50;transform:translate(-50%,-50%) scale(1.07)}
+.item.hot{border-color:var(--hot);box-shadow:0 0 0 3px color-mix(in srgb,var(--hot) 30%,transparent)}
+.item.pop{animation:pop .25s ease-out}
+@keyframes pop{from{transform:translate(-50%,-50%) scale(.6)}to{transform:translate(-50%,-50%) scale(1)}}
+@media (prefers-reduced-motion:reduce){.item.pop{animation:none}}
+button{font:inherit;font-size:.85rem;padding:.4rem .7rem;border-radius:8px;border:1px solid var(--line);background:var(--chip);color:var(--ink);cursor:pointer}
+button:hover{border-color:var(--accent)}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.scrim{position:fixed;inset:0;overflow:auto;z-index:100;background:rgba(10,20,30,.55);display:grid;place-items:center;padding:1rem}
+.scrim form{width:min(420px,100%);background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:1.2rem;box-shadow:0 10px 40px rgba(0,0,0,.35)}
+.scrim h2{margin:0 0 .3rem;font-size:1.15rem}
+.eq{font-size:1.05rem;margin:.2rem 0 .9rem;color:var(--muted)}
+.scrim label{display:block;font-size:.85rem;margin:.6rem 0 .25rem}
+.seg{display:flex;gap:.3rem;margin-bottom:.4rem}
+.seg button{flex:1;padding:.4rem .3rem;font-size:.8rem}
+.seg button.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.scrim select,.scrim input{width:100%;padding:.55rem .7rem;font:inherit;border:1px solid var(--line);border-radius:8px;background:var(--chip);color:var(--ink)}
+.scrim select{width:100%;padding:.55rem .7rem;font:inherit;border:1px solid var(--line);border-radius:8px;background:var(--chip);color:var(--ink)}
+.scrim input:disabled{opacity:.6}
+.emo{display:flex;flex-wrap:wrap;gap:2px;margin-top:.5rem;max-height:130px;overflow:auto}
+.emo button{border:0;background:none;font-size:1.3rem;padding:.15rem .3rem}
+.emo button:hover{background:var(--grid)}
+.opts{display:flex;flex-wrap:wrap;gap:.3rem;max-height:150px;overflow:auto;margin-top:.4rem}
+.opts button{padding:.3rem .55rem}
+.opts button.on,.emo button.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.row{display:flex;justify-content:flex-end;gap:.5rem;margin-top:1rem}
+.note{font-size:.8rem;color:var(--muted);margin-top:.3rem;min-height:1.1em}
+#toast{position:fixed;left:50%;bottom:1.2rem;transform:translateX(-50%);z-index:200;background:var(--ink);color:var(--paper);padding:.5rem .9rem;border-radius:8px;font-size:.9rem}
+@media (max-width:720px){body{flex-direction:column}aside{width:100%;height:42%;border-left:0;border-top:1px solid var(--line)}}
+
+#recipeRoot .recipe-panel{width:min(740px,100%);max-height:85vh;display:flex;flex-direction:column;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:1.2rem;box-shadow:0 10px 40px rgba(0,0,0,.35)}
+.recipe-heading{display:flex;align-items:center;justify-content:space-between;gap:1rem}
+#recipeRoot h2{margin:0}
+#recipeSearch{width:100%;padding:.6rem;margin:.7rem 0;border:1px solid var(--line);border-radius:8px;background:var(--chip);color:var(--ink);font:inherit}
+#recipeEntries{overflow:auto;min-height:0;overscroll-behavior:contain}
+.recipe-group{border:1px solid var(--line);border-radius:9px;margin:.6rem 0;padding:.7rem;overflow-wrap:anywhere}
+.recipe-group h3{margin:0 0 .5rem;font-size:1rem}
+.recipe-group ul{margin:0;padding-left:1.2rem}
+.recipe-group li{margin:.45rem 0}
+.recipe-status{color:var(--muted);font-size:.8rem}
+.recipe-del{margin-left:.4rem;padding:.1rem .45rem;font-size:.75rem;color:var(--hot);border-color:var(--hot)}
+
+.tools{display:flex;flex-wrap:wrap;gap:.4rem;padding:.2rem 1rem 0}
+.tools button{flex:1 1 auto}
+.tools button[aria-pressed=true]{background:var(--accent);border-color:var(--accent);color:#fff}
+.srow{flex:0 0 100%;display:flex;flex-wrap:wrap;gap:.45rem;padding-bottom:.55rem;border-bottom:1px dashed var(--line)}
+.grp,.gsec{flex:0 0 100%;min-width:0;border:1px solid var(--line);border-radius:10px;padding:.35rem .45rem .5rem;background:color-mix(in srgb,var(--grid) 35%,transparent)}
+.grp .grp{margin-top:.45rem;background:color-mix(in srgb,var(--grid) 60%,transparent)}
+.ghead{display:flex;align-items:center;gap:.25rem;min-height:1.7rem}
+.gname{flex:1;min-width:0;font-weight:600;font-size:.88rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gedit{flex:1;min-width:0;padding:.2rem .4rem;font:inherit;font-size:.88rem;border:1px solid var(--accent);border-radius:6px;background:var(--chip);color:var(--ink)}
+.gcount{font-size:.75rem;color:var(--muted);padding:0 .2rem}
+.gbtn{padding:.05rem .4rem;font-size:.8rem;border-color:transparent;background:none}
+.gbtn:hover{border-color:var(--accent)}
+.gbtn.danger:hover{border-color:var(--hot);color:var(--hot)}
+.grip{cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;color:var(--muted);padding:0 .2rem}
+.gbody{margin-top:.4rem}
+.gchips{display:flex;flex-wrap:wrap;gap:.4rem}
+.gchips+.grp{margin-top:.45rem}
+.gempty{font-size:.78rem;color:var(--muted);padding:.1rem}
+.drop{outline:2px solid var(--accent);outline-offset:1px}
+.ins-before{box-shadow:0 -3px 0 var(--accent)}
+.ins-after{box-shadow:0 3px 0 var(--accent)}
+[hidden]{display:none!important}
+.grp>.ghead{cursor:pointer;border-radius:6px}
+.grp>.ghead:hover{background:color-mix(in srgb,var(--accent) 10%,transparent)}
+.grp.shut>.ghead .gname::after{content:" …";color:var(--muted)}
+.gghost{position:fixed;z-index:300;pointer-events:none;cursor:grabbing}
+
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="layer" data-dyn=""></div>
+  <div id="hint"><div><b>Drag two elements together</b>Pull them from the list, drop one on another. If nobody has made that combination yet, you name it. Right-click any element to change its name or icon.</div></div>
+</div>
+<aside id="side" class="">
+  <header><h1>Craft Your Own</h1><p><span id="counts" data-dyn=""></span></p></header>
+  <div class="tools">
+    <button id="newGroup" type="button" title="Create a new group">＋ New group</button>
+    <button id="foldAll" type="button" title="Collapse or expand every group at once">Collapse all</button>
+    <button id="groupsToggle" type="button" aria-pressed="true" title="Turn groups on or off. Your groups are kept either way.">Groups: On</button>
+  </div>
+  <input id="q" type="search" placeholder="Search elements" aria-label="Search elements">
+  <div id="list" data-dyn=""></div>
+  <footer>
+    <button id="recipesButton" title="View unlocked elements and the recipes you have crafted">Recipes</button>
+    <button id="export" class="primary" title="Download a copy of this game with every recipe and your groups baked in (no progress)">Export recipes</button>
+    <button id="import" title="Merge recipes and groups from another exported game file">Import</button>
+    <button id="clear">Clear table</button>
+    <button id="reset" title="Forget which elements you've found. Recipes are kept.">Reset progress</button>
+    <input id="file" type="file" accept=".html,.htm,.json" hidden="">
+  </footer>
+</aside>
+<div id="modalRoot" data-dyn=""></div>
+<div id="recipeRoot" data-dyn=""></div>
+<div id="toast" data-dyn="" hidden=""></div>
+
+<!-- RECIPE DATA: the only part the Export button changes. Key = two element names, lowercase, sorted, joined by | -->
+<script id="gamedata" type="application/json">
+{
+ "starters": [{"name":"Water","emoji":"💧"},{"name":"Fire","emoji":"🔥"},{"name":"Earth","emoji":"🌍"},{"name":"Wind","emoji":"🌬️"},{"name":"C-","emoji":"📄"}],
+ "groups": [{"id":"gmvwq3rnbvwe","name":"Undertale","parent":null,"open":false},{"id":"gmvwqasb62qz","name":"Dusttale","parent":"gmvwq3rnbvwe","open":false},{"id":"gmvwqbod97g8","name":"Horrortale","parent":"gmvwq3rnbvwe","open":false},{"id":"gmvwqghqyfow","name":"Burrnttale","parent":"gmvwqf4y137a","open":false},{"id":"gmvwqh0j5ed5","name":"Ancienttale","parent":"gmvwqf4y137a","open":false},{"id":"gmvwqkq9qu5c","name":"Minecraft","parent":null,"open":false},{"id":"gmvwqf4y137a","name":"C-Storytale","parent":null,"open":true},{"id":"gmvwvgy2ch9n","name":"Deadtale","parent":"gmvwqf4y137a","open":false}],
+ "gmap": {"undertale":"gmvwq3rnbvwe","undyne":"gmvwq3rnbvwe","asriel":"gmvwq3rnbvwe","grillby":"gmvwq3rnbvwe","toriel":"gmvwq3rnbvwe","kindness soul":"gmvwq3rnbvwe","patience soul":"gmvwq3rnbvwe","determination soul":"gmvwq3rnbvwe","sans":"gmvwq3rnbvwe","asgore":"gmvwq3rnbvwe","frisk":"gmvwq3rnbvwe","chara":"gmvwq3rnbvwe","save point":"gmvwq3rnbvwe","genocide route":"gmvwq3rnbvwe","pacifist route":"gmvwq3rnbvwe","neutral route":"gmvwq3rnbvwe","monster kid":"gmvwq3rnbvwe","papyrus":"gmvwq3rnbvwe","gaster":"gmvwq3rnbvwe","froggit":"gmvwq3rnbvwe","undertale aus":"gmvwq3rnbvwe","dusttale":"gmvwqasb62qz","murder!sans":"gmvwqasb62qz","phantom!papyrus":"gmvwqasb62qz","horrortale":"gmvwqbod97g8","horror!papyrus":"gmvwqbod97g8","horror!grillby":"gmvwqbod97g8","horror!sans":"gmvwqbod97g8","horror!flowey":"gmvwqbod97g8","flowey":"gmvwq3rnbvwe","aliza":"gmvwqbod97g8","horror!monster kid":"gmvwqbod97g8","horror!mettaton":"gmvwqbod97g8","horror!toriel":"gmvwqbod97g8","horror!undyne":"gmvwqbod97g8","mettaton":"gmvwq3rnbvwe","c-storytale aus":"gmvwqf4y137a","c-burnt!asriel":"gmvwqghqyfow","c-burnt!gaster":"gmvwqghqyfow","c-burnt!flowey":"gmvwqghqyfow","c-burnt!toriel":"gmvwqghqyfow","c-sal":"gmvwqghqyfow","c-burnt!sans":"gmvwqghqyfow","c-burnttale":"gmvwqghqyfow","c-ancient!gaster":"gmvwqh0j5ed5","c-sankhru":"gmvwqh0j5ed5","c-ancient!sans":"gmvwqh0j5ed5","c-ancienttale":"gmvwqh0j5ed5","netherite":"gmvwqkq9qu5c","minecraft":"gmvwqkq9qu5c","c-deadtale":"gmvwvgy2ch9n","c-deadtale!sans":"gmvwvgy2ch9n"},
+ "recipes": {
+ "earth|fire": {"name":"Lava","emoji":"🌋"},
+ "earth|water": {"name":"Plant","emoji":"🌱"},
+ "earth|wind": {"name":"Dust","emoji":"🌫️"},
+ "fire|water": {"name":"Steam","emoji":"♨️"},
+ "fire|wind": {"name":"Smoke","emoji":"💨"},
+ "water|water": {"name":"Lake","emoji":"🏞️"},
+ "water|wind": {"name":"Wave","emoji":"🌊"},
+ "lava|water": {"name":"Stone","emoji":"🪨"},
+ "plant|plant": {"name":"Tree","emoji":"🌳"},
+ "steam|wind": {"name":"Cloud","emoji":"☁️"},
+ "cloud|water": {"name":"Rain","emoji":"🌧️"},
+ "lava|lava": {"name":"Volcano","emoji":"🌋"},
+ "volcano|volcano": {"name":"Mountain","emoji":"🏔️"},
+ "mountain|mountain": {"name":"Mountain Range","emoji":"⛰️"},
+ "mountain range|mountain range": {"name":"Mountain","emoji":"🏔️"},
+ "mountain|mountain range": {"name":"Mountain Range","emoji":"⛰️"},
+ "fire|fire": {"name":"Inferno","emoji":"🔥"},
+ "plant|water": {"name":"Swamp","emoji":"🐊"},
+ "inferno|swamp": {"name":"Wasteland","emoji":"💀"},
+ "swamp|swamp": {"name":"Bog","emoji":"💩"},
+ "bog|bog": {"name":"Swamp","emoji":"🐊"},
+ "fire|steam": {"name":"Engine","emoji":"🚗"},
+ "engine|steam": {"name":"Train","emoji":"🚂"},
+ "train|water": {"name":"Submarine","emoji":"🚢"},
+ "engine|engine": {"name":"Rocket","emoji":"🚀"},
+ "rocket|rocket": {"name":"Satellite","emoji":"🛰️"},
+ "rocket|train": {"name":"Bullet Train","emoji":"🚂"},
+ "bullet train|satellite": {"name":"Internet","emoji":"📶"},
+ "plant|wind": {"name":"Dandelion","emoji":"🌼"},
+ "dandelion|swamp": {"name":"Frog","emoji":"🐸"},
+ "fire|frog": {"name":"Boiling Frog","emoji":"🐸"},
+ "boiling frog|internet": {"name":"Reddit","emoji":"👾"},
+ "reddit|submarine": {"name":"Subreddit","emoji":"💬"},
+ "tree|water": {"name":"River","emoji":"🌊"},
+ "earth|river": {"name":"Delta","emoji":"⬇️"},
+ "delta|subreddit": {"name":"Deltarune","emoji":"🔪"},
+ "deltarune|fire": {"name":"Undertale","emoji":"💀"},
+ "dandelion|earth": {"name":"Flower","emoji":"🌸"},
+ "flower|undertale": {"name":"Flowey","emoji":"🌻"},
+ "flowey|wasteland": {"name":"Asriel","emoji":"🐐"},
+ "frog|undertale": {"name":"Froggit","emoji":"🐸"},
+ "lava|wind": {"name":"Obsidian","emoji":"⬛"},
+ "stone|wind": {"name":"Sand","emoji":"⛱️"},
+ "fire|sand": {"name":"Glass","emoji":"⬜"},
+ "tree|tree": {"name":"Forest","emoji":"🌲"},
+ "earth|earth": {"name":"Mountain","emoji":"🏔️"},
+ "inferno|mountain": {"name":"Volcano","emoji":"🌋"},
+ "wave|wave": {"name":"Tsunami","emoji":"🌊"},
+ "tsunami|tsunami": {"nothing":true},
+ "volcano|water": {"name":"Mountain","emoji":"🏔️"},
+ "tsunami|volcano": {"name":"Mountain","emoji":"🏔️"},
+ "fire|undertale": {"name":"Grillby","emoji":"🔥"},
+ "dust|wind": {"name":"Sandstorm","emoji":"🌪️"},
+ "dust|earth": {"name":"Planet","emoji":"🪐"},
+ "planet|sandstorm": {"name":"Mars","emoji":"🪐"},
+ "earth|mars": {"name":"Life","emoji":"🌱"},
+ "dust|life": {"name":"Human","emoji":"👨"},
+ "human|undertale": {"name":"Soul","emoji":"🤍"},
+ "human|soul": {"name":"Heart","emoji":"❤️"},
+ "heart|heart": {"name":"Love","emoji":"🌹"},
+ "flower|love": {"name":"Rose","emoji":"🌹"},
+ "glass|sand": {"name":"Hourglass","emoji":"⏳"},
+ "fire|hourglass": {"name":"Time","emoji":"⏰"},
+ "heart|time": {"name":"Patience","emoji":"😴"},
+ "patience|soul": {"name":"Patience Soul","emoji":"🩵"},
+ "patience soul|patience soul": {"nothing":true},
+ "inferno|patience": {"name":"Determination","emoji":"😏"},
+ "determination|soul": {"name":"Determination Soul","emoji":"❤️"},
+ "determination soul|patience soul": {"name":"Soul","emoji":"🤍"},
+ "determination|patience soul": {"name":"Determination Soul","emoji":"❤️"},
+ "determination soul|patience": {"name":"Patience Soul","emoji":"🩵"},
+ "life|time": {"name":"Death","emoji":"💀"},
+ "death|human": {"name":"Corpse","emoji":"☠️"},
+ "corpse|time": {"name":"Skeleton","emoji":"💀"},
+ "skeleton|undertale": {"name":"Sans","emoji":"💀"},
+ "love|rose": {"name":"Gift","emoji":"🎁"},
+ "gift|human": {"name":"Kindness","emoji":"😊"},
+ "kindness|soul": {"name":"Kindness Soul","emoji":"💚"},
+ "kindness|patience soul": {"name":"Kindness Soul","emoji":"💚"},
+ "determination soul|kindness": {"name":"Kindness Soul","emoji":"💚"},
+ "kindness soul|patience soul": {"name":"Soul","emoji":"🤍"},
+ "determination soul|kindness soul": {"name":"Soul","emoji":"🤍"},
+ "determination soul|human": {"name":"Frisk","emoji":"😑"},
+ "determination|human": {"name":"Frisk","emoji":"😑"},
+ "death|frisk": {"name":"Save Point","emoji":"⭐"},
+ "death|love": {"name":"Loss","emoji":"💔"},
+ "loss|loss": {"name":"Anger","emoji":"😠"},
+ "anger|death": {"name":"Killing","emoji":"💀"},
+ "frisk|killing": {"name":"Chara","emoji":"🔪"},
+ "killing|undertale": {"name":"Genocide","emoji":"🔪"},
+ "genocide|undertale": {"name":"Genocide Route","emoji":"🔪"},
+ "death|save point": {"name":"Life","emoji":"🌱"},
+ "human|love": {"name":"Relationship","emoji":"💌"},
+ "relationship|time": {"name":"Marriage","emoji":"💌"},
+ "marriage|time": {"name":"Baby","emoji":"👶"},
+ "anger|anger": {"name":"Hate","emoji":"😡"},
+ "hate|marriage": {"name":"Divorce","emoji":"✉️"},
+ "lake|stone": {"name":"Lighthouse","emoji":"🌅"},
+ "fire|lighthouse": {"name":"Beacon","emoji":"🔦"},
+ "beacon|lighthouse": {"name":"Light","emoji":"💡"},
+ "glass|light": {"name":"Mirror","emoji":"🪞"},
+ "mirror|rose": {"name":"Beauty","emoji":"💃"},
+ "beauty|human": {"name":"Woman","emoji":"👩"},
+ "baby|woman": {"name":"Mother","emoji":"👩"},
+ "mother|undertale": {"name":"Toriel","emoji":"🐐"},
+ "marriage|toriel": {"name":"Asgore","emoji":"🐐"},
+ "genocide route|toriel": {"name":"Asgore","emoji":"🐐"},
+ "genocide|toriel": {"name":"Asgore","emoji":"🐐"},
+ "hate|toriel": {"name":"Asgore","emoji":"🐐"},
+ "asgore|toriel": {"name":"Asriel","emoji":"🐐"},
+ "divorce|toriel": {"name":"Asgore","emoji":"🐐"},
+ "death|toriel": {"name":"Asgore","emoji":"🐐"},
+ "asgore|marriage": {"name":"Toriel","emoji":"🐐"},
+ "asgore|divorce": {"name":"Toriel","emoji":"🐐"},
+ "asgore|love": {"name":"Toriel","emoji":"🐐"},
+ "love|sans": {"name":"Papyrus","emoji":"💀"},
+ "bog|earth": {"name":"Mud","emoji":"💩"},
+ "sand|water": {"name":"Clay","emoji":"🏺"},
+ "clay|fire": {"name":"Brick","emoji":"🧱"},
+ "brick|fire": {"name":"Kiln","emoji":"🧱"},
+ "inferno|kiln": {"name":"Furnace","emoji":"🔥"},
+ "earth|furnace": {"name":"Metal","emoji":"⚙️"},
+ "killing|metal": {"name":"Weapon","emoji":"🔪"},
+ "chara|weapon": {"name":"Knife","emoji":"🔪"},
+ "frisk|knife": {"name":"Chara","emoji":"🔪"},
+ "frisk|weapon": {"name":"Chara","emoji":"🔪"},
+ "knife|weapon": {"name":"Sword","emoji":"⚔️"},
+ "sword|undertale": {"name":"Undyne","emoji":"🦈"},
+ "undertale|weapon": {"name":"Genocide Route","emoji":"🔪"},
+ "knife|undertale": {"name":"Genocide Route","emoji":"🔪"},
+ "life|metal": {"name":"Robot","emoji":"🤖"},
+ "robot|undertale": {"name":"Mettaton","emoji":"🤖"},
+ "heart|metal": {"name":"Robot","emoji":"🤖"},
+ "baby|time": {"name":"Kid","emoji":"🧒"},
+ "baby|patience": {"name":"Kid","emoji":"🧒"},
+ "kid|time": {"name":"Teenager","emoji":"👦"},
+ "kid|patience": {"name":"Teenager","emoji":"👦"},
+ "life|undertale": {"name":"Monster","emoji":"👹"},
+ "kid|monster": {"name":"Monster Kid","emoji":"🦎"},
+ "earth|sandstorm": {"name":"Planet","emoji":"🪐"},
+ "life|tree": {"name":"Apple","emoji":"🍎"},
+ "apple|life": {"name":"Tree","emoji":"🌳"},
+ "apple|human": {"name":"Sin","emoji":"😈"},
+ "frisk|sin": {"name":"Chara","emoji":"🔪"},
+ "sin|undertale": {"name":"Genocide Route","emoji":"🔪"},
+ "fire|planet": {"name":"Sun","emoji":"☀️"},
+ "sun|undertale": {"name":"Pacifist Route","emoji":"🥰"},
+ "genocide route|pacifist route": {"name":"Neutral Route","emoji":"🟰"},
+ "fire|stone": {"name":"Lava","emoji":"🌋"},
+ "determination soul|determination soul": {"nothing":true},
+ "kindness soul|kindness soul": {"nothing":true},
+ "planet|sun": {"name":"Solar System","emoji":"🌌"},
+ "solar system|solar system": {"name":"Universe","emoji":"🌌"},
+ "universe|universe": {"name":"Multiverse","emoji":"🌌"},
+ "mirror|multiverse": {"name":"Parallel Universe","emoji":"🌌"},
+ "cloud|fire": {"name":"Lightning","emoji":"⚡"},
+ "lightning|metal": {"name":"Strike","emoji":"💥"},
+ "parallel universe|strike": {"name":"Alternate Universe","emoji":"🌌"},
+ "alternate universe|reddit": {"name":"AU","emoji":"📚"},
+ "au|undertale": {"name":"Undertale AU","emoji":"📖"},
+ "dust|undertale au": {"name":"Dusttale","emoji":"🌫️"},
+ "dusttale|skeleton": {"name":"Murder!Sans","emoji":"💀"},
+ "dusttale|sans": {"name":"Murder!Sans","emoji":"💀"},
+ "loss|time": {"name":"Grief","emoji":"😞"},
+ "grief|murder!sans": {"name":"Phantom!Papyrus","emoji":"👻"},
+ "dusttale|human": {"name":"Chara","emoji":"🔪"},
+ "dusttale|flowey": {"name":"Dead","emoji":"💀"},
+ "dusttale|froggit": {"name":"Dead","emoji":"💀"},
+ "dusttale|grillby": {"name":"Dead","emoji":"💀"},
+ "dusttale|mettaton": {"name":"Dead","emoji":"💀"},
+ "dusttale|toriel": {"name":"Dead","emoji":"💀"},
+ "dusttale|undyne": {"name":"Dead","emoji":"💀"},
+ "asgore|dusttale": {"name":"Dead","emoji":"💀"},
+ "dusttale|monster kid": {"name":"Dead","emoji":"💀"},
+ "dusttale|sin": {"name":"Murder!Sans","emoji":"💀"},
+ "grief|human": {"name":"Depression","emoji":"🙁"},
+ "depression|loss": {"name":"Fear","emoji":"😨"},
+ "au|reddit": {"name":"Story","emoji":"📖"},
+ "fear|story": {"name":"Horror","emoji":"😱"},
+ "horror|undertale au": {"name":"Horrortale","emoji":"😱"},
+ "horrortale|skeleton": {"name":"Horror!Sans","emoji":"💀"},
+ "horrortale|sans": {"name":"Horror!Sans","emoji":"💀"},
+ "horror!sans|love": {"name":"Horror!Papyrus","emoji":"💀"},
+ "horrortale|papyrus": {"name":"Horror!Papyrus","emoji":"💀"},
+ "horrortale|robot": {"name":"Horror!Mettaton","emoji":"🤖"},
+ "horrortale|mettaton": {"name":"Horror!Mettaton","emoji":"🤖"},
+ "horrortale|monster kid": {"name":"Horror!Monster Kid","emoji":"🦎"},
+ "horrortale|mother": {"name":"Horror!Toriel","emoji":"🐐"},
+ "horrortale|toriel": {"name":"Horror!Toriel","emoji":"🐐"},
+ "horrortale|sword": {"name":"Horror!Undyne","emoji":"🦈"},
+ "horrortale|undyne": {"name":"Horror!Undyne","emoji":"🦈"},
+ "dusttale|papyrus": {"name":"Dead","emoji":"💀"},
+ "horrortale|murder!sans": {"name":"Horror!Sans","emoji":"💀"},
+ "asgore|horrortale": {"name":"Dead","emoji":"💀"},
+ "horrortale|human": {"name":"Aliza","emoji":"😔"},
+ "flowey|horrortale": {"name":"Horror!Flowey","emoji":"🌻"},
+ "grillby|horrortale": {"name":"Horror!Grillby","emoji":"🔥"},
+ "dusttale|horror!flowey": {"name":"Dead","emoji":"💀"},
+ "dusttale|horror!sans": {"name":"Murder!Sans","emoji":"💀"},
+ "dusttale|horror!papyrus": {"name":"Dead","emoji":"💀"},
+ "dusttale|horror!undyne": {"name":"Dead","emoji":"💀"},
+ "dusttale|horror!monster kid": {"name":"Dead","emoji":"💀"},
+ "dusttale|horror!mettaton": {"name":"Dead","emoji":"💀"},
+ "dusttale|horror!toriel": {"name":"Dead","emoji":"💀"},
+ "horror!sans|horror!undyne": {"name":"Hate","emoji":"😡"},
+ "au|au": {"name":"AUs","emoji":"📚"},
+ "undertale au|undertale au": {"name":"Undertale AUs","emoji":"📖"},
+ "dust|undertale aus": {"name":"Dusttale","emoji":"🌫️"},
+ "horror|undertale aus": {"name":"Horrortale","emoji":"😱"},
+ "c-|undertale aus": {"name":"C-Storytale AUs","emoji":"📖"},
+ "human|strike": {"name":"Pain","emoji":"🩸"},
+ "fire|pain": {"name":"Burn","emoji":"🔥"},
+ "human|time": {"name":"Age","emoji":"🧓"},
+ "age|time": {"name":"Past","emoji":"⏰"},
+ "burn|past": {"name":"Burnt","emoji":"🔥"},
+ "burnt|c-storytale aus": {"name":"C-Burnttale","emoji":"🔥"},
+ "c-burnttale|skeleton": {"name":"C-Burnt!Sans","emoji":"💀"},
+ "c-burnt!sans|c-burnt!sans": {"name":"C-Sal","emoji":"💀"},
+ "c-burnttale|sans": {"name":"C-Burnt!Sans","emoji":"💀"},
+ "c-burnttale|murder!sans": {"name":"C-Burnt!Sans","emoji":"💀"},
+ "c-burnttale|horror!sans": {"name":"C-Burnt!Sans","emoji":"💀"},
+ "c-burnt!sans|marriage": {"name":"C-Burnt!Toriel","emoji":"🐐"},
+ "c-sal|marriage": {"name":"C-Burnt!Toriel","emoji":"🐐"},
+ "c-sal|love": {"name":"C-Burnt!Toriel","emoji":"🐐"},
+ "c-burnt!sans|love": {"name":"C-Burnt!Toriel","emoji":"🐐"},
+ "c-burnttale|mother": {"name":"C-Burnt!Toriel","emoji":"🐐"},
+ "c-burnttale|toriel": {"name":"C-Burnt!Toriel","emoji":"🐐"},
+ "c-burnt!sans|toriel": {"name":"C-Burnt!Toriel","emoji":"🐐"},
+ "c-sal|toriel": {"name":"C-Burnt!Toriel","emoji":"🐐"},
+ "c-burnt!sans|horror!toriel": {"name":"C-Burnt!Toriel","emoji":"🐐"},
+ "c-sal|horror!toriel": {"name":"C-Burnt!Toriel","emoji":"🐐"},
+ "c-burnttale|horror!toriel": {"name":"C-Burnt!Toriel","emoji":"🐐"},
+ "flower|horrortale": {"name":"Horror!Flowey","emoji":"🌻"},
+ "c-burnttale|flower": {"name":"C-Burnt!Flowey","emoji":"🌻"},
+ "c-burnttale|horror!flowey": {"name":"C-Burnt!Flowey","emoji":"🌻"},
+ "c-burnttale|flowey": {"name":"C-Burnt!Flowey","emoji":"🌻"},
+ "c-burnt!flowey|wasteland": {"name":"C-Burnt!Asriel","emoji":"🐐"},
+ "story|tree": {"name":"Book","emoji":"📕"},
+ "book|human": {"name":"Intellect","emoji":"🧠"},
+ "human|intellect": {"name":"Scientist","emoji":"🧑‍🔬"},
+ "sans|scientist": {"name":"Gaster","emoji":"💀"},
+ "c-sal|scientist": {"name":"C-Burnt!Gaster","emoji":"💀"},
+ "c-burnt!sans|scientist": {"name":"C-Burnt!Gaster","emoji":"💀"},
+ "c-burnttale|gaster": {"name":"C-Burnt!Gaster","emoji":"💀"},
+ "age|human": {"name":"Old","emoji":"🧓"},
+ "old|time": {"name":"Ancient","emoji":"🏜️"},
+ "ancient|c-storytale aus": {"name":"C-Ancienttale","emoji":"🏜️"},
+ "ancient|c-burnttale": {"name":"C-Ancienttale","emoji":"🏜️"},
+ "burnt|c-ancienttale": {"name":"C-Burnttale","emoji":"🔥"},
+ "c-ancienttale|skeleton": {"name":"C-Ancient!Sans","emoji":"💀"},
+ "c-ancient!sans|c-ancient!sans": {"name":"C-Sankhru","emoji":"💀"},
+ "c-ancienttale|sans": {"name":"C-Ancient!Sans","emoji":"💀"},
+ "c-ancienttale|c-burnt!sans": {"name":"C-Ancient!Sans","emoji":"💀"},
+ "c-ancienttale|horror!sans": {"name":"C-Ancient!Sans","emoji":"💀"},
+ "c-ancienttale|murder!sans": {"name":"C-Ancient!Sans","emoji":"💀"},
+ "scientist|undertale": {"name":"Gaster","emoji":"💀"},
+ "c-ancienttale|scientist": {"name":"C-Ancient!Gaster","emoji":"💀"},
+ "c-ancient!sans|scientist": {"name":"C-Ancient!Gaster","emoji":"💀"},
+ "c-sankhru|gaster": {"name":"C-Ancient!Gaster","emoji":"💀"},
+ "aus|undertale": {"name":"Undertale AUs","emoji":"📖"},
+ "internet|internet": {"name":"Network","emoji":"🛜"},
+ "lightning|scientist": {"name":"Electricity","emoji":"⚡"},
+ "electricity|metal": {"name":"Technology","emoji":"⚙️"},
+ "internet|technology": {"name":"Computer","emoji":"💻"},
+ "computer|human": {"name":"Programmer","emoji":"🧑‍💻"},
+ "genocide|neutral route": {"name":"Genocide Route","emoji":"🔪"},
+ "killing|neutral route": {"name":"Genocide Route","emoji":"🔪"},
+ "death|neutral route": {"name":"Genocide Route","emoji":"🔪"},
+ "programmer|story": {"name":"Game","emoji":"🎮"},
+ "game|story": {"name":"Lore","emoji":"📖"},
+ "delta|game": {"name":"Deltarune","emoji":"🔪"},
+ "game|lore": {"name":"Story","emoji":"📖"},
+ "metal|technology": {"name":"Tools","emoji":"⚒️"},
+ "metal|stone": {"name":"Ore","emoji":"🪨"},
+ "ore|tools": {"name":"Pickaxe","emoji":"⛏️"},
+ "human|pickaxe": {"name":"Miner","emoji":"⛏️"},
+ "game|miner": {"name":"Minecraft","emoji":"⛏️"},
+ "corpse|minecraft": {"name":"Zombie","emoji":"🧟"},
+ "human|zombie": {"name":"Zombie","emoji":"🧟"},
+ "minecraft|save point": {"name":"Respawn Point","emoji":"🌟"},
+ "death|respawn point": {"name":"Respawn","emoji":"😇"},
+ "chara|respawn": {"name":"Reset","emoji":"🔁"},
+ "frisk|respawn": {"name":"Reset","emoji":"🔁"},
+ "old|reset": {"name":"Baby","emoji":"👶"},
+ "lore|reddit": {"name":"Fandom","emoji":"📗"},
+ "clay|steam": {"name":"Bowl","emoji":"🥣"},
+ "apple|bowl": {"name":"Apple Pie","emoji":"🥧"},
+ "apple pie|toriel": {"name":"Butterscotch-Cinnamon Pie","emoji":"🥧"},
+ "lightning|rain": {"name":"Storm","emoji":"⛈️"},
+ "storm|wind": {"name":"Tornado","emoji":"🌪️"},
+ "brick|brick": {"name":"Wall","emoji":"🧱"},
+ "wall|wall": {"name":"Structure","emoji":"🏠"},
+ "human|structure": {"name":"House","emoji":"🏠"},
+ "scientist|structure": {"name":"Lab","emoji":"🔬"},
+ "corpse|structure": {"name":"Graveyard","emoji":"🪦"},
+ "structure|tornado": {"name":"Destruction","emoji":"💥"},
+ "destruction|structure": {"name":"Debris","emoji":"💥"},
+ "ancient|debris": {"name":"Ancient Debris","emoji":"🏜️"},
+ "ancient debris|minecraft": {"name":"Netherite","emoji":"🪨"},
+ "fandom|game": {"name":"Game Fandom","emoji":"🎮"},
+ "dead|fandom": {"name":"Dead Fandom","emoji":"💀"},
+ "dead|game fandom": {"name":"Dead Fandom","emoji":"💀"},
+ "au|fandom": {"name":"Fan Creations","emoji":"🎨"},
+ "au|fan creations": {"name":"Fan AU","emoji":"📚"},
+ "fan au|fan au": {"name":"Fan AUs","emoji":"📚"},
+ "aus|fan au": {"name":"Fan AUs","emoji":"📚"},
+ "aus|fan creations": {"name":"Fan AUs","emoji":"📚"},
+ "fan au|reddit": {"name":"Fan Fiction","emoji":"📕"},
+ "fan au|undertale": {"name":"Undertale AU","emoji":"📖"},
+ "fan aus|undertale": {"name":"Undertale AUs","emoji":"📖"},
+ "aus|reddit": {"name":"Story","emoji":"📖"},
+ "beauty|programmer": {"name":"Artist","emoji":"🎨"},
+ "artist|story": {"name":"Art","emoji":"🖼️"},
+ "artist|fan fiction": {"name":"Fan Art","emoji":"🖼️"},
+ "art|fan fiction": {"name":"Fan Art","emoji":"🖼️"},
+ "fan art|fan au": {"name":"Story","emoji":"📖"},
+ "artist|structure": {"name":"Studio","emoji":"🏡"},
+ "fan creations|minecraft": {"name":"Mods","emoji":"➕"},
+ "death|sin": {"name":"Hell","emoji":"🔥"},
+ "glass|metal": {"name":"Lense","emoji":"🔍"},
+ "lense|technology": {"name":"Telescope","emoji":"🔭"},
+ "human|telescope": {"name":"Astronomer","emoji":"🔭"},
+ "earth|stone": {"name":"Rock","emoji":"🪨"},
+ "astronomer|rock": {"name":"Meteor","emoji":"☄️"},
+ "meteor|meteor": {"name":"Meteorite","emoji":"☄️"},
+ "tools|tree": {"name":"Axe","emoji":"🪓"},
+ "axe|tree": {"name":"Wood","emoji":"🪵"},
+ "axe|wood": {"name":"Plank","emoji":"🪵"},
+ "house|wood": {"name":"Cabin","emoji":"🏠"},
+ "plank|river": {"name":"Bridge","emoji":"🌉"},
+ "plank|water": {"name":"Paper","emoji":"📄"},
+ "art|paper": {"name":"Image","emoji":"🖼️"},
+ "image|lense": {"name":"Camera","emoji":"📷"},
+ "camera|meteor": {"name":"UFO","emoji":"🛸"},
+ "life|ufo": {"name":"Alien","emoji":"👽"},
+ "alien|technology": {"name":"UFO","emoji":"🛸"},
+ "human|plant": {"name":"Farmer","emoji":"🧑‍🌾"},
+ "art|human": {"name":"Artist","emoji":"🎨"},
+ "programmer|zombie": {"name":"Zombie","emoji":"🧟"},
+ "artist|zombie": {"name":"Zombie","emoji":"🧟"},
+ "farmer|zombie": {"name":"Zombie","emoji":"🧟"},
+ "astronomer|zombie": {"name":"Zombie","emoji":"🧟"},
+ "miner|zombie": {"name":"Zombie","emoji":"🧟"},
+ "programmer|reddit": {"name":"Moderator","emoji":"🧑‍💻"},
+ "moderator|paper": {"name":"Rules","emoji":"📃"},
+ "moderator|structure": {"name":"Website","emoji":"🌐"},
+ "astronomer|structure": {"name":"Observatory","emoji":"🔭"},
+ "meteorite|meteorite": {"name":"Meteor","emoji":"☄️"},
+ "farmer|structure": {"name":"Farm","emoji":"🌾"},
+ "dead|life": {"name":"Undead","emoji":"🧟"},
+ "corpse|undead": {"name":"Zombie","emoji":"🧟"},
+ "human|undead": {"name":"Zombie","emoji":"🧟"},
+ "zombie|zombie": {"name":"Horde","emoji":"🧟"},
+ "lore|website": {"name":"Wiki","emoji":"📜"},
+ "story|website": {"name":"ARG","emoji":"🖥️"},
+ "human|story": {"name":"Writer","emoji":"✏️"},
+ "writer|zombie": {"name":"Zombie","emoji":"🧟"},
+ "structure|writer": {"name":"Library","emoji":"📚"},
+ "human|lore": {"name":"Character","emoji":"👨"},
+ "character|writer": {"name":"Original Character","emoji":"👨"},
+ "original character|reddit": {"name":"OC","emoji":"👨"},
+ "hell|universe": {"name":"Hellaverse","emoji":"🔥"},
+ "image|image": {"name":"Video","emoji":"📽️"},
+ "apple|scientist": {"name":"Gravity","emoji":"⬇️"},
+ "apple|gravity": {"name":"Newton","emoji":"🍎"},
+ "c-storytale aus|dead": {"name":"C-Deadtale","emoji":"☠️"},
+ "c-ancienttale|dead": {"name":"C-Deadtale","emoji":"☠️"},
+ "c-burnttale|dead": {"name":"C-Deadtale","emoji":"☠️"},
+ "ancient|c-deadtale": {"name":"C-Ancienttale","emoji":"🏜️"},
+ "burnt|c-deadtale": {"name":"C-Burnttale","emoji":"🔥"},
+ "c-deadtale|save point": {"name":"C-Deadtale!Sans","emoji":"💀"},
+ "c-deadtale|sans": {"name":"C-Deadtale!Sans","emoji":"💀"},
+ "c-deadtale|skeleton": {"name":"C-Deadtale!Sans","emoji":"💀"},
+ "c-burnt!sans|c-deadtale": {"name":"C-Deadtale!Sans","emoji":"💀"},
+ "c-ancient!sans|c-deadtale": {"name":"C-Deadtale!Sans","emoji":"💀"},
+ "c-deadtale!sans|c-deadtale!sans": {"name":"C-Charsan","emoji":"💀"},
+ "c-burnttale|c-deadtale!sans": {"name":"C-Burnt!Sans","emoji":"💀"},
+ "c-ancienttale|c-deadtale!sans": {"name":"C-Ancient!Sans","emoji":"💀"},
+ "house|house": {"name":"Village","emoji":"🏠"}
+ }
+}
+</script>
+
+<script>
+(() => {
+const $ = s => document.querySelector(s);
+const base = JSON.parse($('#gamedata').textContent);
+const store = {
+  get(k, d){ try { return JSON.parse(localStorage.getItem('craft:' + k)) ?? d } catch(e){ return d } },
+  set(k, v){ try { localStorage.setItem('craft:' + k, JSON.stringify(v)) } catch(e){} }
+};
+const key = (a, b) => [a, b].map(s => s.toLowerCase()).sort().join('|');
+
+store.get('edits', []).forEach(e => applyEdit(e.from, e.to, e.emoji, true));   // replay renames / icon changes onto the built-in data
+let custom = store.get('custom', {});          // recipes you made (kept until baked in by Export)
+let removed = store.get('removed', []);        // recipe keys you erased (so built-in ones stay gone until Export bakes it in)
+if (!Array.isArray(removed)) removed = [];
+
+/* ---------- groups (organising folders; never affect recipes) ---------- */
+let groups = store.get('groups', []);          // [{id, name, parent, open}]
+let gmap = store.get('gmap', {});              // element name (lowercase) -> group id
+let groupsOn = store.get('groupsOn', true);
+let editingGid = null;
+if (!Array.isArray(groups)) groups = [];
+groups = groups.filter(g => g && typeof g.id === 'string' && typeof g.name === 'string');
+if (!gmap || typeof gmap !== 'object' || Array.isArray(gmap)) gmap = {};
+const mk = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
+const saveG = () => { store.set('groups', groups); store.set('gmap', gmap); };
+const findG = id => groups.find(g => g.id === id);
+const kidsOf = id => groups.filter(g => (g.parent || '') === id);
+const isStarter = n => base.starters.some(s => s.name.toLowerCase() === n.toLowerCase());
+groups.forEach(g => { if (g.parent && !findG(g.parent)) g.parent = null; });
+// true when group `id` is `ancestor` itself or sits somewhere inside it
+function isInside(id, ancestor){
+  for (let g = findG(id), n = 0; g && n < 100; g = findG(g.parent), n++) if (g.id === ancestor) return true;
+  return false;
+}
+// Merge groups from an exported game file. Existing groups and existing assignments always win; only missing ones are added.
+function mergeGroups(src){
+  let n = 0;
+  (Array.isArray(src.groups) ? src.groups : []).forEach(g => {
+    if (g && typeof g.id === 'string' && typeof g.name === 'string' && !findG(g.id)){
+      groups.push({ id: g.id, name: String(g.name).slice(0, 30), parent: typeof g.parent === 'string' ? g.parent : null, open: g.open !== false }); n++;
+    }
+  });
+  groups.forEach(g => { if (g.parent && !findG(g.parent)) g.parent = null; });
+  const m = src.gmap && typeof src.gmap === 'object' && !Array.isArray(src.gmap) ? src.gmap : {};
+  Object.entries(m).forEach(([k, v]) => {
+    if (typeof v === 'string' && findG(v) && gmap[k] === undefined && !isStarter(k)){ gmap[k] = v; n++; }
+  });
+  return n;
+}
+// Groups baked into this file by Export: merged in once per exported version, so later edits you make are respected.
+{
+  const sig = JSON.stringify([base.groups || [], base.gmap || {}]);
+  if ((base.groups || []).length && store.get('groupsSeed', '') !== sig){ mergeGroups(base); store.set('groupsSeed', sig); saveG(); }
+}
+function newGroup(parent){
+  groupsOn = true; store.set('groupsOn', true);
+  const g = { id: 'g' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), name: 'New group', parent: parent || null, open: true };
+  groups.push(g);
+  if (parent){ const p = findG(parent); if (p) p.open = true; }
+  editingGid = g.id; $('#q').value = ''; saveG(); renderSide();
+}
+function commitName(g, v){
+  if (editingGid !== g.id) return;
+  editingGid = null; const n = v.trim(); if (n) g.name = n;
+  saveG(); renderSide();
+}
+// Deleting a group never deletes what is inside it: elements and subgroups move up one level.
+function deleteGroup(id){
+  const g = findG(id); if (!g) return;
+  const up = g.parent || '';
+  groups.forEach(c => { if (c.parent === id) c.parent = up || null; });
+  Object.keys(gmap).forEach(k => { if (gmap[k] === id){ if (up) gmap[k] = up; else delete gmap[k]; } });
+  groups = groups.filter(x => x !== g);
+  saveG(); renderSide(); toast('Deleted group “' + g.name + '”. Everything inside was kept.');
+}
+function setGroup(name, gid, quiet){
+  if (isStarter(name)) return toast('Starting elements stay outside of groups');
+  const k = name.toLowerCase(), g = gid && findG(gid);
+  if (g) gmap[k] = gid; else delete gmap[k];
+  saveG(); renderSide();
+  if (!quiet) toast('Moved ' + name + ' to ' + (g ? '“' + g.name + '”' : 'Groupless'));
+}
+// pos: 'in' = become the last child of target ('' = last at top level), 'before' / 'after' = sit next to target as a sibling.
+// Sibling order is simply the order of the groups array, which is also what Export saves.
+function moveGroup(id, targetId, pos){
+  const g = findG(id); if (!g) return;
+  if (targetId && (targetId === id || isInside(targetId, id))) return;       // can't move a group into itself
+  const t = targetId ? findG(targetId) : null;
+  groups.splice(groups.indexOf(g), 1);
+  let msg;
+  if (pos === 'in' || !t){
+    g.parent = t ? t.id : null; groups.push(g); if (t) t.open = true;
+    msg = t ? 'Moved “' + g.name + '” into “' + t.name + '”' : 'Moved “' + g.name + '” to the end of the top level';
+  } else {
+    g.parent = t.parent || null; groups.splice(groups.indexOf(t) + (pos === 'after' ? 1 : 0), 0, g);
+    msg = 'Moved “' + g.name + '” ' + (pos === 'after' ? 'below' : 'above') + ' “' + t.name + '”';
+  }
+  saveG(); renderSide(); toast(msg);
+}
+function dropEl(ev){
+  for (const x of document.elementsFromPoint(ev.clientX, ev.clientY)){
+    const c = x.closest && x.closest('[data-drop]'); if (c) return c;
+  }
+  return null;
+}
+function markDrop(el, pos){
+  const cls = pos === 'before' ? 'ins-before' : pos === 'after' ? 'ins-after' : 'drop';
+  document.querySelectorAll('.drop,.ins-before,.ins-after').forEach(x => { if (x !== el) x.classList.remove('drop', 'ins-before', 'ins-after'); });
+  if (el){ el.classList.remove('drop', 'ins-before', 'ins-after'); el.classList.add(cls); }
+}
+function beginGroupDrag(ev, g){
+  ev.preventDefault();
+  const ghost = mk('div', 'chip gghost', '📁 ' + g.name); document.body.append(ghost);
+  let tgt = null;   // { el, pos }
+  // Over the top/bottom edge of a group's header (or the very bottom of the group) = place next to it; anywhere else = put inside it.
+  const pick = e => {
+    const c = dropEl(e); if (!c) return null;
+    const id = c.dataset.drop;
+    if (id !== '' && isInside(id, g.id)) return null;
+    if (id === '') return { el: c, pos: 'in' };
+    const h = c.querySelector(':scope > .ghead').getBoundingClientRect(), b = c.getBoundingClientRect();
+    if (e.clientY >= h.top && e.clientY <= h.bottom){
+      const r = (e.clientY - h.top) / Math.max(1, h.height);
+      return { el: c, pos: r < 0.3 ? 'before' : r > 0.7 ? 'after' : 'in' };
+    }
+    if (e.clientY >= b.bottom - 8) return { el: c, pos: 'after' };
+    return { el: c, pos: 'in' };
+  };
+  const mv = e => {
+    ghost.style.left = e.clientX + 10 + 'px'; ghost.style.top = e.clientY + 10 + 'px';
+    const l = $('#list').getBoundingClientRect();   // scroll the list when dragging near its edge
+    if (e.clientX >= l.left && e.clientX <= l.right){
+      if (e.clientY < l.top + 28 && e.clientY > l.top - 40) $('#list').scrollTop -= 14;
+      else if (e.clientY > l.bottom - 28 && e.clientY < l.bottom + 40) $('#list').scrollTop += 14;
+    }
+    tgt = pick(e); tgt ? markDrop(tgt.el, tgt.pos) : markDrop(null);
+  };
+  const done = apply => {
+    removeEventListener('pointermove', mv); removeEventListener('pointerup', up); removeEventListener('pointercancel', cx);
+    ghost.remove(); markDrop(null);
+    if (apply && tgt) moveGroup(g.id, tgt.el.dataset.drop, tgt.pos);
+  };
+  const up = () => done(true), cx = () => done(false);
+  addEventListener('pointermove', mv); addEventListener('pointerup', up); addEventListener('pointercancel', cx);
+  mv(ev);
+}
+function fillGroupSelect(sel, current){
+  sel.innerHTML = '';
+  const add = (v, t) => { const o = document.createElement('option'); o.value = v; o.textContent = t; sel.append(o); };
+  add('', 'Groupless');
+  const walk = (pid, d) => kidsOf(pid).forEach(g => { add(g.id, '  '.repeat(d) + (d ? '↳ ' : '') + g.name); walk(g.id, d + 1); });
+  walk('', 0);
+  sel.value = findG(current) ? current : '';
+}
+function syncFold(){
+  const b = $('#foldAll'); b.textContent = groups.some(g => g.open !== false) ? 'Collapse all' : 'Expand all';
+  b.disabled = !groupsOn || !groups.length;
+}
+$('#foldAll').onclick = () => { const anyOpen = groups.some(g => g.open !== false); groups.forEach(g => { g.open = !anyOpen; }); saveG(); renderSide(); };
+$('#newGroup').onclick = () => newGroup(null);
+$('#groupsToggle').onclick = () => { groupsOn = !groupsOn; store.set('groupsOn', groupsOn); editingGid = null; renderSide(); };
+let recipes = merged();
+let found = store.get('found', []);            // progress: names you've discovered
+let crafted = store.get('crafted', []);
+if (!Array.isArray(crafted)) crafted = [];
+let items = [];                                // elements on the table
+let drag = null;
+let D = dict();
+
+function merged(){
+  const m = { ...base.recipes, ...custom };
+  removed.forEach(k => delete m[k]);
+  return m;
+}
+function dict(){
+  const d = {};
+  base.starters.forEach(e => d[e.name.toLowerCase()] = e);
+  Object.values(recipes).forEach(r => { if (r.nothing) return; const k = r.name.toLowerCase(); if (!d[k]) d[k] = r; });
+  return d;
+}
+function toast(msg){
+  const t = $('#toast'); t.textContent = msg; t.hidden = false;
+  clearTimeout(toast.t); toast.t = setTimeout(() => t.hidden = true, 2200);
+}
+function firstGlyph(s){
+  s = (s || '').trim(); if (!s) return '✨';
+  return window.Intl && Intl.Segmenter ? [...new Intl.Segmenter().segment(s)][0].segment : Array.from(s)[0];
+}
+
+/* ---------- element list ---------- */
+function names(){ return [...base.starters.map(e => e.name), ...found.filter(n => !base.starters.some(s => s.name.toLowerCase() === n.toLowerCase()))]; }
+function makeChip(e){
+  const c = mk('div', 'chip');
+  c.innerHTML = '<span></span><span></span>';
+  c.children[0].textContent = e.emoji; c.children[1].textContent = e.name;
+  c.addEventListener('pointerdown', ev => {
+    if (ev.button > 0) return; ev.preventDefault();
+    const it = spawn(e.name, ev.clientX, ev.clientY); begin(it);
+  });
+  c.addEventListener('contextmenu', ev => { ev.preventDefault(); editElement(e.name); });
+  return c;
+}
+function renderSide(){
+  const q = $('#q').value.trim().toLowerCase(), list = $('#list');
+  list.innerHTML = '';
+  const all = names().filter(n => D[n.toLowerCase()]);
+  const hit = n => n.toLowerCase().includes(q);
+  const chipOf = n => makeChip(D[n.toLowerCase()]);
+  $('#groupsToggle').textContent = 'Groups: ' + (groupsOn ? 'On' : 'Off');
+  $('#groupsToggle').setAttribute('aria-pressed', String(groupsOn));
+  if (!groupsOn){
+    all.filter(hit).forEach(n => list.append(chipOf(n)));
+  } else {
+    const st = all.filter(n => isStarter(n) && hit(n));
+    if (st.length){ const row = mk('div', 'srow'); st.forEach(n => row.append(chipOf(n))); list.append(row); }
+    const byG = {};
+    all.filter(n => !isStarter(n)).forEach(n => {
+      const g = gmap[n.toLowerCase()], id = g && findG(g) ? g : '';
+      (byG[id] = byG[id] || []).push(n);
+    });
+    const sum = (id, f) => f(byG[id] || []) + kidsOf(id).reduce((s, c) => s + sum(c.id, f), 0);
+    const total = id => sum(id, a => a.length), shown = id => sum(id, a => a.filter(hit).length);
+    const draw = g => {
+      const box = mk('div', 'grp'); box.dataset.drop = g.id;
+      const head = mk('div', 'ghead');
+      const grip = mk('span', 'grip', '⠿'); grip.title = 'Drag to reorder: drop on the top or bottom edge of a group to place it above or below, in the middle to nest it, or on Groupless for the end of the top level';
+      grip.addEventListener('pointerdown', ev => { if (ev.button > 0) return; beginGroupDrag(ev, g); });
+      const tg = mk('button', 'gbtn gtog'); tg.type = 'button';
+      let body = null;
+      // Folding happens in place (nothing is re-rendered), so the contents stay in the page and drops onto a folded group still work.
+      const paint = () => {
+        const o = q ? true : g.open !== false;
+        tg.textContent = o ? '▾' : '▸'; tg.title = o ? 'Collapse' : 'Expand'; tg.setAttribute('aria-expanded', String(o));
+        box.classList.toggle('shut', !o); if (body) body.hidden = !o;
+      };
+      const fold = () => { if (q || editingGid === g.id) return; g.open = g.open === false; saveG(); paint(); syncFold(); };
+      tg.onclick = e => { e.stopPropagation(); fold(); };
+      head.addEventListener('click', e => { if (!e.target.closest('button,input,.grip')) fold(); });
+      head.append(grip, tg);
+      if (editingGid === g.id){
+        const inp = mk('input', 'gedit'); inp.value = g.name; inp.maxLength = 30; inp.setAttribute('aria-label', 'Group name');
+        inp.onkeydown = e => {
+          e.stopPropagation();
+          if (e.key === 'Enter'){ e.preventDefault(); commitName(g, inp.value); }
+          else if (e.key === 'Escape'){ editingGid = null; renderSide(); }
+        };
+        inp.onblur = () => commitName(g, inp.value);
+        head.append(inp);
+      } else {
+        const nm = mk('span', 'gname', g.name); nm.title = 'Double-click to rename';
+        nm.ondblclick = () => { editingGid = g.id; renderSide(); };
+        head.append(nm);
+      }
+      head.append(mk('span', 'gcount', String(q ? shown(g.id) : total(g.id))));
+      [['＋', 'Add a subgroup', () => newGroup(g.id)],
+       ['✎', 'Rename group', () => { editingGid = g.id; renderSide(); }],
+       ['✕', 'Delete group (everything inside is kept)', () => deleteGroup(g.id), 'danger']].forEach(([t, tip, fn, cls]) => {
+        const b = mk('button', 'gbtn' + (cls ? ' ' + cls : ''), t); b.type = 'button'; b.title = tip; b.setAttribute('aria-label', tip); b.onclick = fn; head.append(b);
+      });
+      box.append(head);
+      body = mk('div', 'gbody');
+      const wrap = mk('div', 'gchips'); (byG[g.id] || []).filter(hit).forEach(n => wrap.append(chipOf(n)));
+      const kids = kidsOf(g.id).filter(c => !q || shown(c.id));
+      if (wrap.children.length) body.append(wrap);
+      else if (!q && !kids.length) body.append(mk('div', 'gempty', 'Empty. Drag elements here.'));
+      kids.forEach(c => body.append(draw(c)));
+      box.append(body);
+      paint();
+      return box;
+    };
+    kidsOf('').forEach(g => { if (!q || shown(g.id)) list.append(draw(g)); });
+    const gl = byG[''] || [], glHit = gl.filter(hit);
+    if (!q || glHit.length){
+      const sec = mk('div', 'gsec'); sec.dataset.drop = '';
+      const head = mk('div', 'ghead');
+      head.title = 'Drop elements here to take them out of a group, or drop a group here to move it to the top level';
+      head.append(mk('span', 'gname', 'Groupless'), mk('span', 'gcount', String(q ? glHit.length : gl.length)));
+      sec.append(head);
+      const wrap = mk('div', 'gchips gbody'); glHit.forEach(n => wrap.append(chipOf(n)));
+      if (!glHit.length) wrap.append(mk('div', 'gempty', 'New elements land here until you group them.'));
+      sec.append(wrap); list.append(sec);
+    }
+  }
+  $('#counts').textContent = names().length + ' elements · ' + Object.keys(recipes).length + ' recipes';
+  syncFold();
+  if (editingGid){ const i = list.querySelector('.gedit'); if (i){ i.focus(); i.select(); } }
+}
+function discover(name){
+  if (names().some(n => n.toLowerCase() === name.toLowerCase())) return;
+  found.push(name); store.set('found', found); renderSide();
+}
+
+/* ---------- table items ---------- */
+function place(it){ it.el.style.left = it.x + 'px'; it.el.style.top = it.y + 'px'; }
+function spawn(name, x, y){
+  const e = D[name.toLowerCase()];
+  const el = document.createElement('div'); el.className = 'item';
+  el.innerHTML = '<span></span><span></span>';
+  el.children[0].textContent = e.emoji; el.children[1].textContent = e.name;
+  const it = { name: e.name, el, x, y };
+  place(it); items.push(it); $('#layer').append(el);
+  el.addEventListener('pointerdown', ev => {
+    if (ev.button > 0) return; ev.preventDefault();
+    begin(it, ev.clientX - it.x, ev.clientY - it.y);
+  });
+  el.addEventListener('dblclick', () => spawn(it.name, it.x + 24, it.y + 24));
+  el.addEventListener('contextmenu', ev => { ev.preventDefault(); editElement(it.name); });
+  return it;
+}
+function remove(it){ it.el.remove(); items = items.filter(o => o !== it); }
+function begin(it, ox = 0, oy = 0){ drag = { it, ox, oy }; it.el.classList.add('drag'); }
+function target(it){
+  const a = it.el.getBoundingClientRect(); let best = null, bd = 1e9;
+  for (const o of items){
+    if (o === it) continue;
+    const b = o.el.getBoundingClientRect();
+    if (a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top){
+      const d = Math.hypot(a.left + a.width/2 - b.left - b.width/2, a.top + a.height/2 - b.top - b.height/2);
+      if (d < bd){ bd = d; best = o; }
+    }
+  }
+  return best;
+}
+const overSide = ev => { const r = $('#side').getBoundingClientRect(); return ev.clientX >= r.left && ev.clientX <= r.right && ev.clientY >= r.top && ev.clientY <= r.bottom; };
+
+addEventListener('pointermove', ev => {
+  if (!drag) return;
+  const it = drag.it; it.x = ev.clientX - drag.ox; it.y = ev.clientY - drag.oy; place(it);
+  const t = target(it); items.forEach(o => o.el.classList.toggle('hot', o === t));
+  const dz = overSide(ev) && groupsOn ? dropEl(ev) : null;
+  markDrop(dz);
+  $('#side').classList.toggle('trash', overSide(ev) && !dz);
+});
+addEventListener('pointerup', ev => {
+  if (!drag) return;
+  const it = drag.it; drag = null;
+  it.el.classList.remove('drag'); items.forEach(o => o.el.classList.remove('hot'));
+  $('#side').classList.remove('trash');
+  const dz = overSide(ev) && groupsOn ? dropEl(ev) : null; markDrop(null);
+  if (dz){ const gid = dz.dataset.drop; remove(it); return setGroup(it.name, gid); }   // dropped on a group: file it there
+  if (overSide(ev)) return remove(it);
+  it.x = Math.min(Math.max(it.x, 30), innerWidth - 30); it.y = Math.min(Math.max(it.y, 20), innerHeight - 20); place(it);
+  const t = target(it); if (t) combine(it, t);
+});
+addEventListener('pointercancel', () => { if (drag){ drag.it.el.classList.remove('drag'); drag = null; markDrop(null); $('#side').classList.remove('trash'); } });
+
+/* ---------- crafting ---------- */
+function combine(a, b){
+  const r = recipes[key(a.name, b.name)];
+  if (!r) return ask(a, b);
+  r.nothing ? nothing(a, b) : finish(a, b, r);
+}
+function finish(a, b, r){
+  rememberCraft(a.name, b.name);
+  const x = b.x, y = b.y; remove(a); remove(b);
+  const it = spawn(r.name, x, y); it.el.classList.add('pop'); discover(r.name);
+}
+function nothing(a, b){
+  rememberCraft(a.name, b.name);
+  a.x += (a.x >= b.x ? 1 : -1) * 120; place(a); toast('Nothing happens…');
+}
+const EMOJI = `😀|smile happy face grin
+😂|laugh joy funny lol
+😎|cool sunglasses
+🥳|party celebrate birthday
+😴|sleep tired zzz
+🤯|mind blown explode shock
+🥶|cold freezing ice
+🥵|hot sweat heat
+🤖|robot machine bot
+👻|ghost spooky halloween
+💀|skull dead bones
+👽|alien ufo space
+👹|monster ogre demon
+🧙|wizard mage magic
+🧛|vampire dracula
+🧟|zombie undead
+🧜|mermaid sea
+🧚|fairy pixie
+🐶|dog puppy pet
+🐱|cat kitten pet
+🐭|mouse rat
+🐰|rabbit bunny
+🦊|fox
+🐻|bear
+🐼|panda bear
+🐨|koala
+🐯|tiger cat
+🦁|lion king
+🐮|cow farm
+🐷|pig farm
+🐸|frog toad
+🐵|monkey ape
+🐔|chicken hen farm
+🐧|penguin bird cold
+🐦|bird tweet
+🦅|eagle bird
+🦉|owl bird night
+🦇|bat night vampire
+🐺|wolf howl
+🐴|horse
+🦄|unicorn magic horse
+🐝|bee honey insect
+🐛|bug caterpillar worm insect
+🦋|butterfly insect
+🐌|snail slow
+🐞|ladybug insect
+🕷️|spider web insect
+🐢|turtle slow
+🐍|snake reptile
+🦎|lizard reptile
+🐙|octopus sea tentacle
+🦀|crab sea
+🐠|fish tropical sea
+🐟|fish sea
+🐬|dolphin sea
+🐳|whale sea
+🦈|shark sea
+🐊|crocodile alligator reptile
+🐘|elephant
+🦒|giraffe
+🦖|dinosaur trex
+🦕|dinosaur sauropod
+🐉|dragon fantasy
+🌵|cactus desert plant
+🌲|pine tree forest evergreen
+🌳|tree forest
+🌴|palm tree tropical beach
+🌱|plant sprout seedling grow
+🌿|herb leaf plant
+🍀|clover luck lucky
+🍁|maple leaf autumn fall
+🍄|mushroom fungus
+🌸|blossom flower cherry spring
+🌹|rose flower love
+🌻|sunflower flower
+🌷|tulip flower
+💐|bouquet flowers
+🌍|earth world globe planet
+🌋|volcano lava eruption
+⛰️|mountain
+🏔️|mountain snow
+🏝️|island beach
+🏜️|desert sand
+🏞️|park lake nature
+🌊|wave ocean sea water
+💧|water drop
+☔|rain umbrella
+🌧️|rain cloud storm
+⛈️|thunder storm lightning
+🌩️|lightning cloud
+⚡|lightning bolt electric power
+❄️|snow ice cold winter
+☃️|snowman winter
+🔥|fire flame hot
+☁️|cloud sky
+🌫️|fog mist dust
+🌪️|tornado wind storm
+🌬️|wind blow air
+🌈|rainbow
+☀️|sun sunny day
+🌙|moon night
+🌕|full moon night
+⭐|star
+🌟|glowing star shine
+✨|sparkle magic shine
+☄️|comet meteor space
+🪐|saturn planet space
+🌌|galaxy milky way space
+🚀|rocket space launch
+🛸|ufo flying saucer alien space
+🛰️|satellite space
+🍎|apple fruit red
+🍌|banana fruit
+🍇|grapes fruit wine
+🍓|strawberry fruit berry
+🍉|watermelon fruit
+🍋|lemon fruit sour
+🍍|pineapple fruit
+🥕|carrot vegetable
+🌽|corn vegetable
+🥔|potato vegetable
+🍅|tomato vegetable
+🍞|bread food bake
+🧀|cheese food
+🥚|egg food
+🍳|egg frying pan cook breakfast
+🥓|bacon food
+🍔|burger hamburger food
+🍟|fries food
+🍕|pizza food
+🌮|taco food
+🍣|sushi food fish
+🍜|noodles ramen soup food
+🍩|donut doughnut sweet
+🍪|cookie sweet
+🎂|cake birthday sweet
+🍫|chocolate sweet
+🍦|ice cream sweet
+☕|coffee tea hot drink
+🍵|tea green drink
+🍺|beer drink
+🍷|wine drink
+🥛|milk drink
+🧊|ice cube cold
+🧂|salt
+🪨|rock stone
+🪵|wood log timber
+🧱|brick wall build
+⚙️|gear cog machine
+🔩|bolt nut tool
+🔧|wrench tool
+🔨|hammer tool build
+⛏️|pickaxe mine tool
+🪓|axe tool chop
+⚔️|swords fight battle
+🛡️|shield defense
+🏹|bow arrow archery
+💣|bomb explosion
+💥|boom explosion crash
+🧨|firecracker dynamite explosive
+🔮|crystal ball magic fortune
+🪄|magic wand
+🧪|test tube science chemistry potion
+⚗️|alchemy chemistry flask
+🧬|dna science biology
+🔬|microscope science
+🔭|telescope space science
+💡|light bulb idea
+🔋|battery power energy
+🧲|magnet
+💎|diamond gem jewel
+💰|money bag gold
+🪙|coin money gold
+👑|crown king queen royal
+🏰|castle fantasy
+🏠|house home
+🏭|factory industry
+🗼|tower
+🗽|statue liberty
+⛵|sailboat boat sea
+🚢|ship boat sea
+🚗|car vehicle
+🚂|train locomotive
+✈️|airplane plane flight
+🚁|helicopter
+🚲|bicycle bike
+⚓|anchor sea ship
+🔔|bell ring
+🎸|guitar music
+🎹|piano keyboard music
+🥁|drum music
+🎵|music note song
+🎨|art paint palette
+📚|books library read
+📖|book read story
+✏️|pencil write
+📱|phone mobile
+💻|laptop computer
+🎮|video game controller
+🎲|dice game luck
+🧩|puzzle piece
+🎈|balloon party
+🎁|gift present
+🎉|party popper celebrate
+🏆|trophy win prize
+⚽|soccer football ball sport
+🏀|basketball sport
+🎯|target dart bullseye
+🕸️|web spider
+🦠|germ virus microbe
+💨|dash smoke steam puff
+♨️|steam hot spring
+🕯️|candle light flame
+🪞|mirror
+🔑|key lock
+🗝️|old key
+🚪|door
+🪜|ladder
+🧵|thread string
+🪡|needle sew
+🧶|yarn wool
+🎩|top hat magic
+👒|hat sun
+👓|glasses
+💍|ring
+❤️|heart love
+💔|broken heart
+🧠|brain mind smart
+👁️|eye look
+👂|ear listen
+🦴|bone
+🦷|tooth
+☠️|skull crossbones danger poison
+☢️|radioactive nuclear
+♻️|recycle
+🌀|spiral swirl cyclone vortex
+🏁|flag finish race
+🚩|red flag
+⏳|hourglass time sand
+⏰|alarm clock time
+❓|question mark
+❗|exclamation warning`.split('\n').map(l => l.split('|'));
+
+function ask(a, b){
+  const ea = D[a.name.toLowerCase()], eb = D[b.name.toLowerCase()];
+  const root = $('#modalRoot');
+  root.innerHTML = '<div class="scrim"><form><h2>Nobody has made this yet</h2><div class="eq"></div>' +
+    '<div class="seg"><button type="button" data-m="new" class="on">Something new</button><button type="button" data-m="old">Existing element</button><button type="button" data-m="none">Nothing</button></div>' +
+    '<div id="pNew"><label for="nm">Name your creation</label><input id="nm" maxlength="30" autocomplete="off" required>' +
+    '<div class="note" id="nn"></div>' +
+    '<label for="em">Emoji</label><input id="em" autocomplete="off" placeholder="Pick below or paste your own">' +
+    '<input id="emq" type="search" autocomplete="off" placeholder="Search emoji (cat, food, space…)" aria-label="Search emoji" style="margin-top:.4rem"><div class="emo"></div></div>' +
+    '<div id="pOld" hidden><label for="oq">Which element does it make?</label><input id="oq" type="search" autocomplete="off" placeholder="Search elements">' +
+    '<div class="note" id="chosen"></div><div class="opts"></div></div>' +
+    '<div id="pNone" class="note" hidden>These two do nothing when combined. You won\'t be asked again.</div>' +
+    '<div class="row"><button type="button" id="no">Cancel</button><button class="primary">Save</button></div></form></div>';
+  root.querySelector('.eq').textContent = ea.emoji + ' ' + ea.name + '  +  ' + eb.emoji + ' ' + eb.name + '  =  ?';
+  const nm = $('#nm'), em = $('#em'), nn = $('#nn'), emq = $('#emq'), oq = $('#oq'), chosen = $('#chosen');
+  const grid = root.querySelector('.emo'), opts = root.querySelector('.opts');
+  let mode = 'new', picked = null;
+  const all = Object.values(D).sort((x, y) => x.name.localeCompare(y.name));
+
+  function drawEmoji(){
+    const typed = emq.value.trim();
+    const terms = (typed || nm.value.trim()).toLowerCase().split(/\s+/).filter(Boolean);
+    let list = EMOJI.filter(([g, k]) => terms.every(t => k.includes(t)));
+    if (!list.length && !typed) list = EMOJI;
+    grid.innerHTML = '';
+    if (!list.length){ grid.textContent = 'No emoji match. Paste your own above.'; return; }
+    list.forEach(([g]) => {
+      const bt = document.createElement('button'); bt.type = 'button'; bt.textContent = g;
+      bt.classList.toggle('on', em.value === g);
+      bt.onclick = () => { em.value = g; grid.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === bt)); };
+      grid.append(bt);
+    });
+  }
+  function drawOld(){
+    const q = oq.value.trim().toLowerCase();
+    const list = all.filter(e => e.name.toLowerCase().includes(q));
+    opts.innerHTML = '';
+    if (!list.length){ opts.textContent = 'No element with that name.'; return; }
+    list.forEach(e => {
+      const bt = document.createElement('button'); bt.type = 'button'; bt.textContent = e.emoji + ' ' + e.name;
+      bt.classList.toggle('on', picked === e);
+      bt.onclick = () => {
+        picked = e; chosen.textContent = 'Makes: ' + e.emoji + ' ' + e.name;
+        opts.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === bt));
+      };
+      opts.append(bt);
+    });
+  }
+  emq.addEventListener('input', drawEmoji);
+  oq.addEventListener('input', drawOld);
+  drawEmoji(); drawOld();
+
+  root.querySelectorAll('.seg button').forEach(btn => btn.onclick = () => {
+    mode = btn.dataset.m;
+    root.querySelectorAll('.seg button').forEach(x => x.classList.toggle('on', x === btn));
+    $('#pNew').hidden = mode !== 'new'; $('#pOld').hidden = mode !== 'old'; $('#pNone').hidden = mode !== 'none';
+    nm.required = mode === 'new';
+    if (mode === 'new') nm.focus(); else if (mode === 'old') oq.focus();
+  });
+  nm.addEventListener('input', () => {
+    const ex = D[nm.value.trim().toLowerCase()];
+    em.disabled = !!ex;
+    if (ex){ em.value = ex.emoji; nn.textContent = 'That name already exists, so it keeps its emoji.'; } else nn.textContent = '';
+    drawEmoji();
+  });
+  const close = () => { root.innerHTML = ''; };
+  $('#no').onclick = () => { close(); a.x += 110; place(a); };
+  root.querySelector('form').addEventListener('submit', ev => {
+    ev.preventDefault();
+    let r;
+    if (mode === 'none') r = { nothing: true };
+    else if (mode === 'old'){
+      const q = oq.value.trim().toLowerCase();
+      const ex = picked || (q && all.find(e => e.name.toLowerCase().includes(q)));
+      if (!ex){ chosen.textContent = 'Search and pick an element first.'; return; }
+      r = { name: ex.name, emoji: ex.emoji };
+    } else {
+      const name = nm.value.replace(/\|/g, '').trim(); if (!name) return;
+      const ex = D[name.toLowerCase()];
+      r = ex ? { name: ex.name, emoji: ex.emoji } : { name, emoji: firstGlyph(em.value) };
+    }
+    const k = key(a.name, b.name);
+    if (removed.includes(k)){ removed = removed.filter(x => x !== k); store.set('removed', removed); }
+    recipes[k] = r; custom[k] = r; store.set('custom', custom); D = dict();
+    close();
+    if (r.nothing) nothing(a, b); else finish(a, b, r);
+    renderSide(); toast(r.nothing ? 'Saved: these two do nothing' : 'Saved: ' + r.emoji + ' ' + r.name);
+  });
+  nm.focus();
+}
+
+
+/* ---------- rename / re-icon an element (right click) ---------- */
+// Rewrites every place an element's name appears: starters, recipe keys and results, progress and the table.
+function applyEdit(from, to, emoji, baseOnly){
+  const f = from.toLowerCase(), t = to.toLowerCase();
+  const fixVal = r => (r && !r.nothing && r.name.toLowerCase() === f) ? { name: to, emoji } : r;
+  const fixKey = k => k.split('|').map(s => s === f ? t : s).sort().join('|');
+  const fixMap = m => { const o = {}; for (const [k, r] of Object.entries(m)) o[fixKey(k)] = fixVal(r); return o; };
+  base.starters = base.starters.map(e => e.name.toLowerCase() === f ? { name: to, emoji } : e);
+  base.recipes = fixMap(base.recipes);
+  if (baseOnly) return;
+  custom = fixMap(custom);
+  removed = [...new Set(removed.map(fixKey))]; store.set('removed', removed);
+  recipes = merged();
+  found = found.map(n => n.toLowerCase() === f ? to : n);
+  if (f !== t && gmap[f] !== undefined){ gmap[t] = gmap[f]; delete gmap[f]; }
+  store.set('gmap', gmap);
+  crafted = [...new Set(crafted.map(fixKey))];
+}
+function commitEdit(from, to, emoji){
+  applyEdit(from, to, emoji, false);
+  const edits = store.get('edits', []); edits.push({ from, to, emoji }); store.set('edits', edits);
+  store.set('custom', custom); store.set('found', found); store.set('crafted', crafted);
+  D = dict();
+  const f = from.toLowerCase();
+  items.forEach(it => {
+    if (it.name.toLowerCase() !== f) return;
+    it.name = to; it.el.children[0].textContent = emoji; it.el.children[1].textContent = to;
+  });
+  renderSide();
+}
+function editElement(name){
+  if (drag || $('#modalRoot').hasChildNodes() || $('#recipeRoot').hasChildNodes()) return;
+  const cur = Object.prototype.hasOwnProperty.call(D, name.toLowerCase()) ? D[name.toLowerCase()] : null;
+  if (!cur) return;
+  const root = $('#modalRoot');
+  root.innerHTML = '<div class="scrim"><form><h2>Edit element</h2><div class="eq"></div>' +
+    '<label for="enm">Name</label><input id="enm" maxlength="30" autocomplete="off" required>' +
+    '<div class="note" id="enn"></div>' +
+    '<label for="egr" id="egl">Group</label><select id="egr"></select>' +
+    '<label for="eem">Emoji</label><input id="eem" autocomplete="off" placeholder="Pick below or paste your own">' +
+    '<input id="eemq" type="search" autocomplete="off" placeholder="Search emoji (cat, food, space…)" aria-label="Search emoji" style="margin-top:.4rem"><div class="emo"></div>' +
+    '<div class="row"><button type="button" id="eno">Cancel</button><button class="primary">Save</button></div></form></div>';
+  const nm = $('#enm'), em = $('#eem'), nn = $('#enn'), emq = $('#eemq'), grid = root.querySelector('.emo'), eq = root.querySelector('.eq');
+  nm.value = cur.name; em.value = cur.emoji;
+  if (isStarter(cur.name)){ $('#egr').remove(); $('#egl').remove(); }   // starting elements stay outside groups
+  else fillGroupSelect($('#egr'), gmap[cur.name.toLowerCase()] || '');
+  const preview = () => { eq.textContent = (em.value.trim() ? firstGlyph(em.value) : cur.emoji) + ' ' + (nm.value.trim() || cur.name); };
+  function drawEmoji(){
+    const terms = emq.value.trim().toLowerCase().split(/\s+/).filter(Boolean);
+    const list = EMOJI.filter(([g, k]) => terms.every(t => k.includes(t)));
+    grid.innerHTML = '';
+    if (!list.length){ grid.textContent = 'No emoji match. Paste your own above.'; return; }
+    list.forEach(([g]) => {
+      const bt = document.createElement('button'); bt.type = 'button'; bt.textContent = g;
+      bt.classList.toggle('on', em.value === g);
+      bt.onclick = () => { em.value = g; preview(); grid.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === bt)); };
+      grid.append(bt);
+    });
+  }
+  const close = () => { root.innerHTML = ''; };
+  emq.addEventListener('input', drawEmoji);
+  nm.addEventListener('input', () => { nn.textContent = ''; preview(); });
+  em.addEventListener('input', () => { preview(); drawEmoji(); });
+  $('#eno').onclick = close;
+  root.onkeydown = e => { if (e.key === 'Escape'){ e.preventDefault(); close(); } };
+  root.querySelector('form').addEventListener('submit', ev => {
+    ev.preventDefault();
+    const to = nm.value.replace(/\|/g, '').trim(); if (!to) return;
+    const k = to.toLowerCase();
+    const clash = Object.prototype.hasOwnProperty.call(D, k) ? D[k] : null;
+    if (clash && clash.name.toLowerCase() !== cur.name.toLowerCase()){ nn.textContent = 'Another element is already named ' + clash.name + '. Pick a different name.'; return; }
+    const emoji = em.value.trim() ? firstGlyph(em.value) : cur.emoji;
+    const gsel = $('#egr'), newG = gsel ? gsel.value : null;
+    const oldG = gmap[cur.name.toLowerCase()];
+    const same = to === cur.name && emoji === cur.emoji;
+    const gChanged = newG !== null && newG !== (oldG && findG(oldG) ? oldG : '');
+    if (same && !gChanged){ close(); return; }
+    if (!same) commitEdit(cur.name, to, emoji);
+    if (gChanged) setGroup(to, newG, true);
+    close(); toast('Updated: ' + emoji + ' ' + to);
+  });
+  preview(); drawEmoji(); nm.focus(); nm.select();
+}
+
+/* ---------- recipe book and per-combination progress ---------- */
+function rememberCraft(a, b){
+  const k = key(a, b);
+  if (!crafted.includes(k)){ crafted.push(k); store.set('crafted', crafted); }
+}
+function eraseRecipe(k){
+  delete custom[k]; delete recipes[k];
+  crafted = crafted.filter(x => x !== k);
+  if (!removed.includes(k)) removed.push(k);
+  store.set('custom', custom); store.set('crafted', crafted); store.set('removed', removed);
+  D = dict(); renderSide();
+}
+function openRecipeBook(admin = false){
+  if (drag || $('#modalRoot').hasChildNodes()) return;
+  const root = $('#recipeRoot');
+  const previousFocus = document.activeElement;
+  root.innerHTML = '<div class="scrim"><section class="recipe-panel" role="dialog" aria-modal="true" aria-labelledby="recipeTitle"><div class="recipe-heading"><h2 id="recipeTitle"></h2><button type="button" id="closeRecipes" aria-label="Close recipes">Close</button></div><p class="note" id="recipeHelp"></p><input type="search" id="recipeSearch" placeholder="Search elements or ingredients" aria-label="Search recipes"><div class="note" id="recipeSummary" aria-live="polite"></div><div id="recipeEntries"></div></section></div>';
+  $('#recipeTitle').textContent = admin ? 'Admin recipe book' : 'Your recipe book';
+  $('#recipeHelp').textContent = admin
+    ? 'All saved recipes, including uncrafted combinations and combinations that do nothing. Viewing does not unlock anything.'
+    : 'Unlocked elements and only the combinations you have personally crafted. Recipe history starts with this version.';
+  const label = n => { const e = D[n.toLowerCase()]; return e ? e.emoji + ' ' + e.name : n; };
+  function draw(){
+    const q = $('#recipeSearch').value.trim().toLowerCase();
+    const groups = new Map();
+    if (!admin) names().forEach(n => groups.set(n.toLowerCase(), {name:n, rows:[]}));
+    Object.entries(recipes).forEach(([k, r]) => {
+      if (!admin && (!crafted.includes(k) || r.nothing || !groups.has(r.name.toLowerCase()))) return;
+      const id = r.nothing ? '__nothing__' : r.name.toLowerCase();
+      if (!groups.has(id)) groups.set(id, {name:r.nothing ? 'Nothing happens' : r.name, rows:[]});
+      groups.get(id).rows.push({k, r});
+    });
+    const entries = $('#recipeEntries'); entries.replaceChildren();
+    let shown = 0, count = 0;
+    [...groups.values()].sort((a,b) => a.name.localeCompare(b.name)).forEach(g => {
+      const titleMatches = g.name.toLowerCase().includes(q);
+      const rows = g.rows.filter(row => titleMatches || row.k.includes(q));
+      if (!titleMatches && !rows.length) return;
+      shown++; count += rows.length;
+      const section = document.createElement('section'); section.className = 'recipe-group';
+      const heading = document.createElement('h3');
+      heading.textContent = g.name === 'Nothing happens' ? g.name : label(g.name); section.append(heading);
+      if (!rows.length){
+        const note = document.createElement('p'); note.className = 'note';
+        note.textContent = base.starters.some(e => e.name.toLowerCase() === g.name.toLowerCase())
+          ? 'Starting element — no crafting required.' : 'Unlocked — no recorded crafting methods yet. Craft it again to record a method.';
+        section.append(note);
+      } else {
+        const ul = document.createElement('ul');
+        rows.sort((a,b) => a.k.localeCompare(b.k)).forEach(({k,r}) => {
+          const li = document.createElement('li');
+          li.textContent = k.split('|').map(label).join(' + ') + ' = ' + (r.nothing ? 'Nothing happens' : label(r.name));
+          const del = document.createElement('button'); del.type = 'button'; del.className = 'recipe-del'; del.textContent = 'Erase';
+          del.title = 'Erase this recipe. Crafting these two again will ask you what they make.';
+          del.onclick = () => {
+            if (!confirm('Erase recipe?\n' + li.firstChild.textContent)) return;
+            eraseRecipe(k); draw();
+          };
+          li.append(' ', del);
+          if (admin){ const status = document.createElement('span'); status.className = 'recipe-status'; status.textContent = crafted.includes(k) ? ' — Crafted' : ' — Not crafted'; li.append(status); }
+          ul.append(li);
+        }); section.append(ul);
+      }
+      entries.append(section);
+    });
+    $('#recipeSummary').textContent = shown + ' elements / outcomes · ' + count + ' crafting methods';
+    if (!shown) entries.textContent = 'No matching recipes or elements.';
+  }
+  const close = () => { root.replaceChildren(); if (previousFocus && previousFocus.isConnected) previousFocus.focus(); };
+  $('#closeRecipes').onclick = close;
+  root.querySelector('.scrim').onclick = e => { if (e.target === e.currentTarget) close(); };
+  root.onkeydown = e => {
+    if (e.key === 'Escape'){ e.preventDefault(); e.stopPropagation(); close(); }
+    if (e.key === 'Tab'){
+      const first = $('#closeRecipes'), last = $('#recipeSearch');
+      if (e.shiftKey && document.activeElement === first){ e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last){ e.preventDefault(); first.focus(); }
+    }
+  };
+  $('#recipeSearch').oninput = draw; draw(); $('#recipeSearch').focus();
+}
+$('#recipesButton').onclick = () => openRecipeBook(false);
+// ===== BEGIN OPTIONAL CHEAT CODES =====
+// Set this to false to disable both shortcuts, or delete this entire marked block.
+const CHEATS_ENABLED = true;
+if (CHEATS_ENABLED){
+  const cheatKeys = new Set();
+  function unlockAllElements(){
+    const known = new Set(names().map(n => n.toLowerCase()));
+    let added = 0;
+    Object.values(D).forEach(element => {
+      if (!known.has(element.name.toLowerCase())){
+        found.push(element.name); known.add(element.name.toLowerCase()); added++;
+      }
+    });
+    store.set('found', found);
+    $('#q').value = '';
+    renderSide();
+    toast(added ? 'Unlocked ' + added + ' elements!' : 'Every element is already unlocked!');
+  }
+  addEventListener('keydown', e => {
+    if (e.ctrlKey || e.metaKey || e.altKey || e.repeat) return;
+    if (drag || $('#modalRoot').hasChildNodes()) { cheatKeys.clear(); return; }
+    const inRecipeBook = $('#recipeRoot').hasChildNodes();
+    if (!inRecipeBook && e.target.closest && e.target.closest('input,textarea,select,[contenteditable="true"]')){
+      cheatKeys.clear(); return;
+    }
+    cheatKeys.add(e.code);
+    if (cheatKeys.has('KeyZ') && cheatKeys.has('KeyN')){
+      e.preventDefault(); cheatKeys.clear();
+      if (inRecipeBook) openRecipeBook(true);
+      else unlockAllElements();
+    }
+  });
+  addEventListener('keyup', e => cheatKeys.delete(e.code));
+  addEventListener('blur', () => cheatKeys.clear());
+}
+// ===== END OPTIONAL CHEAT CODES =====
+
+/* ---------- export / import ---------- */
+function exportGame(){
+  const doc = document.documentElement.cloneNode(true);
+  doc.querySelectorAll('[data-dyn]').forEach(e => { e.innerHTML = ''; e.removeAttribute('hidden'); });
+  doc.querySelector('#toast').setAttribute('hidden', '');
+  const lines = Object.entries(recipes).map(([k, v]) => ' ' + JSON.stringify(k) + ': ' + JSON.stringify(v));
+  const outGroups = groups.map(g => ({ id: g.id, name: g.name, parent: g.parent || null, open: g.open !== false }));
+  const outMap = {}; Object.entries(gmap).forEach(([k, v]) => { if (findG(v) && !isStarter(k)) outMap[k] = v; });
+  const data = '{\n "starters": ' + JSON.stringify(base.starters) + ',\n "groups": ' + JSON.stringify(outGroups) + ',\n "gmap": ' + JSON.stringify(outMap) + ',\n "recipes": {\n' + lines.join(',\n') + '\n }\n}';
+  doc.querySelector('#gamedata').textContent = '\n' + data.replace(/</g, '\\u003c') + '\n';
+  const html = '<!DOCTYPE html>\n' + doc.outerHTML;
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([html], { type: 'text/html' }));
+  a.download = 'craft-game.html'; document.body.append(a); a.click(); a.remove();
+  toast('Exported ' + lines.length + ' recipes');
+}
+function importFile(f){
+  const r = new FileReader();
+  r.onload = () => {
+    try {
+      const t = String(r.result).trim();
+      const j = t[0] === '{' ? JSON.parse(t) : JSON.parse(new DOMParser().parseFromString(t, 'text/html').querySelector('#gamedata').textContent);
+      let n = 0;
+      for (const [k, v] of Object.entries(j.recipes || {})) if (!recipes[k] && !removed.includes(k) && v && (v.name || v.nothing)){ recipes[k] = custom[k] = v.nothing ? { nothing: true } : { name: String(v.name), emoji: String(v.emoji || '✨') }; n++; }
+      const gn = mergeGroups(j); if (gn) saveG();
+      store.set('custom', custom); D = dict(); renderSide(); toast('Imported ' + n + ' new recipes' + (gn ? ' and ' + gn + ' group items' : ''));
+    } catch(e){ toast("Couldn't read recipes from that file"); }
+  };
+  r.readAsText(f);
+}
+
+$('#export').onclick = exportGame;
+$('#import').onclick = () => $('#file').click();
+$('#file').onchange = e => { if (e.target.files[0]) importFile(e.target.files[0]); e.target.value = ''; };
+$('#clear').onclick = () => { [...items].forEach(remove); };
+$('#reset').onclick = () => { if (confirm('Forget which elements you have found? Your recipes are kept.')){ found = []; store.set('found', found); crafted = []; store.set('crafted', crafted); [...items].forEach(remove); renderSide(); } };
+$('#q').oninput = renderSide;
+renderSide();
+})();
+</script>
+
+
+</body></html>
